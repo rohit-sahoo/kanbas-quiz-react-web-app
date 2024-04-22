@@ -1,0 +1,182 @@
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { FaCheckCircle, FaEdit, FaEllipsisV, FaPlus, FaSortDown, FaCheck } from "react-icons/fa";
+import { FaRocket } from "react-icons/fa6";
+import "./index.css";
+import "./../../style.css";
+import { KanbasState } from "../../Store";
+import { useSelector, useDispatch } from "react-redux";
+import { deleteQuiz, resetQuizForm, selectQuiz, setQuizzes, updateQuiz } from "./quizReducer";
+import { useEffect, useState } from "react";
+import { MdDelete } from "react-icons/md";
+import { IQuiz } from "../../Interfaces/quiz";
+import DeleteQuiz from "./deleteQuiz";
+import * as api from "./api";
+
+function Quizzes() {
+
+    const quizzesDropDownOptions = [
+        { item: "Edit", icon: <FaEdit className="me-1" /> },
+        { item: "Delete", icon: <MdDelete className="me-1" /> },
+        { item: "Publish", icon: <FaCheck className="me-1" /> }
+    ]
+
+    const { courseId } = useParams();
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+
+    const quizList = useSelector((state: KanbasState) => state.quizReducer.quizzes);
+    const [showDropdowns, setShowDropdowns] = useState(Array(quizList.length).fill(false));
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [publishedStatus, setPublishedStatus] = useState(quizList.map(quiz => quiz.publish));
+
+    
+    //initialize the 
+    //useeffect: setshowdropdown - assignmentList.length !
+    const toggleDropdown = (index: number) => {
+        console.log("here in the dropdown: ", index)
+        console.log("before", showDropdowns)
+        setShowDropdowns(prevState =>
+            prevState.map((value, idx) => idx === index ? !value : value)
+        );
+        console.log("after:", showDropdowns)
+    }
+
+    const handleDropdownSelectedOption = async (selectedItem: string, quiz: IQuiz, index: number) => {
+        
+        dispatch(selectQuiz(quiz));
+        setShowDropdowns(Array(quizList.length).fill(false));
+
+        switch (selectedItem) {
+            case 'Edit':
+                navigate(`/Kanbas/Courses/${courseId}/Quizzes/${quiz._id}`);
+                break;
+            case 'Delete':
+                setShowDeleteModal(true);
+                break;
+            case "Publish":
+                // Toggle publish status
+                setPublishedStatus(prev => {
+                    const newStatus = [...prev];
+                    newStatus[index] = !newStatus[index];  // Toggle the status
+                    return newStatus;
+                });
+                break;
+        }
+    }
+
+    useEffect(() => {
+        api.fetchQuizzesForCourse(courseId)
+            .then((quizzes) =>
+                dispatch(setQuizzes(quizzes))
+            );
+    }, [courseId]);
+
+    useEffect(() => {
+        setShowDropdowns(Array(quizList.length).fill(false));
+      }, [quizList.length]);
+
+    return (
+        <div className="container-fluid d-flex flex-row me-5">
+            <div className="col-12 d-flex flex-column mx-4">
+                <div className="d-flex mb-1 justify-content-between">
+                    <div className="search-quiz">
+                        <input type="text" className="form-control" placeholder="Search for Quiz" />
+                    </div>
+
+                    <div className="float-end">
+                        <Link to={`/Kanbas/Courses/${courseId}/Quizzes/new`} className="btn btn-danger me-1 custom-btn">
+                            <FaPlus className="me-1 custom-icon" />
+                            Quiz
+                        </Link>
+                        <button className="btn btn-outline-secondary me-1 custom-btn" type="button">
+                            <FaEllipsisV className="custom-icon" />
+                        </button>
+                    </div>
+                </div>
+                <hr />
+                <div className="list-group p-0 mb-5 rounded-0">
+                    <div className="d-flex list-group-item">
+                        <div className="d-flex align-items-center">
+                            {/* <FaEllipsisV /> */}
+                            {/* <FaEllipsisV className="no-spacing-ellipsis" /> */}
+                            <FaSortDown className="sort-down me-2" />
+                        </div>
+                        <div className="me-auto quiz-header">
+                            <span>Assignment Quizzes</span>
+                        </div>
+                        {/* <div className="d-flex align-items-center">
+                            <div className="rounded-pill border border-dark-subtle me-2">
+                                <span className="mx-3 ">40% of Total</span>
+                            </div>
+                            <FaPlus className="me-3" />
+                            <FaEllipsisV />
+                        </div> */}
+                    </div>
+
+                    {quizList.map((quiz, index) => (
+                        <div key={index} className="d-flex list-group-item align-items-center selected">
+                            <div className="d-flex align-items-center">
+                                {/* <FaEllipsisV /> */}
+                                {/* <FaEllipsisV className="no-spacing-ellipsis" /> */}
+                            </div>
+                            <div className="ms-3">
+                                <FaRocket className="green-icon" />
+                            </div>
+                            <div className="d-flex flex-column ms-3 me-auto">
+                                <Link
+                                    to={`/Kanbas/Courses/${courseId}/Quizzes/${quiz._id}`}
+                                    onClick={() => dispatch(selectQuiz(quiz))}>
+                                    {quiz.title}
+                                </Link>
+                                <div className="multiple-modules">
+                                    <Link to={`/Kanbas/Courses/${courseId}/Modules`}>
+                                        Multiple Modules
+                                    </Link>
+                                    &nbsp; |
+                                    <strong> Due </strong>
+                                    {quiz.dueDate} at {quiz.dueTime} &nbsp; | {quiz.points + ""} pts
+                                </div>
+                            </div>
+                            <div className="d-flex align-items-center float-end">
+                                <FaCheckCircle className={`me-2 green-icon${publishedStatus[index] ? '' : ' faded'}`} />
+
+                                <div className="dropdown" onClick={() => toggleDropdown(index)}>
+                                    <button className="module-dropdown"
+                                        aria-expanded={showDropdowns[index]}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleDropdown(index)
+                                        }
+                                        }
+                                    >
+                                        <FaEllipsisV />
+                                    </button>
+                                    <div className={`dropdown-menu dropdown-menu-start module-dropdown-menu${showDropdowns[index] ? ' show' : ''}`}>
+                                        {quizzesDropDownOptions.map((option, index) => (
+                                            <button
+                                                key={index}
+                                                className="dropdown-item"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDropdownSelectedOption(option.item, quiz, index);
+                                                }}>
+                                                {option.icon}
+                                                {option.item}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {showDeleteModal && <DeleteQuiz show={showDeleteModal} setShow={setShowDeleteModal} />}
+
+                </div>
+            </div>
+        </div >
+    );
+}
+
+
+export default Quizzes
